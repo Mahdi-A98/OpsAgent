@@ -1,0 +1,56 @@
+from devops_agents.docker.utils.manager import DockerManager
+from core.utils import create_structured_tool
+from devops_agents.docker.schemas import ContainerSpec, ContainerTask
+
+
+run_container_tool = create_structured_tool(
+    func = DockerManager.run_container,
+    name = "run_container",
+    description="runs docker containers with specified parameter",
+    args_schema=ContainerSpec,
+    log=True,
+    log_colour="orange"
+)
+
+run_task_on_container_tool = create_structured_tool(
+    func = DockerManager.run_task,
+    name = "run_task_container",
+    description="""
+    runs commands on docker containers and creates a runner object that executes asynchronously.
+    returns runner_id so can check status and logs of task using this runner id.
+    """,
+    args_schema=ContainerTask,
+    log=True,
+    log_colour="white"
+)
+
+get_list_of_containers_tool = create_structured_tool(
+    func = DockerManager.list_available_containers,
+    name = "list_available_containers",
+    description="""lists all container""",
+    log=True,
+    log_colour="purple"
+)
+
+stop_task_runner_tool = create_structured_tool(
+    func = DockerManager.stop_runner,
+    name = "stop_task_runner",
+    description="""stops task runner with given runner_id
+    and return the status of interruption""",
+    log=True,
+    log_colour="red"
+)
+
+all_container_tools = [
+    run_container_tool,
+    run_task_on_container_tool,
+    get_list_of_containers_tool,
+    stop_task_runner_tool,
+]
+
+all_container_tools_mapping = {
+    run_container_tool.name: run_container_tool,
+    run_task_on_container_tool.name: run_task_on_container_tool,
+    get_list_of_containers_tool.name: get_list_of_containers_tool,
+    stop_task_runner_tool.name: stop_task_runner_tool,
+}
