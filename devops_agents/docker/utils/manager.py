@@ -7,23 +7,34 @@ import docker
 import signal
 import subprocess
 import threading
-from typing import List, Dict, Optional, Generator
+from enum import StrEnum
+from typing import List, Dict, Optional, Generator, Literal
 from core.schemas import TaskOutput
 from devops_agents.docker.schemas import ContainerSpec
 
 
 
 # Thread-safe dictionary for storing runners
+# ToDo cache and clean after a time and empty_log
 RUNNER_REGISTRY: Dict[str, "DockerTaskRunner"] = {}
 
 
-class DockerTaskRunner:
+class TaskStatus(StrEnum):
+    NOT_STARTED = "NOT_STARTED"
+    FAILED = "FAILED"
+    DONE = "DONE"
+    PROCESSING = "PROCESSING"
+
+class DockerTaskRunner:    
+    
     def __init__(self, container_name: str, command: List[str], use_sdk: bool = True):
         self.container_name = container_name
         self.command = command
         self.use_sdk = use_sdk
         self._stop_flag = False
         self.thread = None
+        self.status: TaskStatus = TaskStatus.NOT_STARTED
+        self.id = str(uuid.uuid4())
 
         if self.use_sdk:
             self.client = docker.from_env()
@@ -60,12 +71,18 @@ class DockerTaskRunner:
             threading.Thread(target=enqueue_logs, args=(self.proc.stderr, "ERROR")).start()
         
         finished = 0
-        while finished <= 2:
-            for line in q.get():
-                yield line
-            finished += 1
+        while finished < 2:  # wait for both stdout and stderr
+            try:
+                line = q.get(timeout=5)
+                if line is None:
+                    finished += 1
+                else:
+                    yield line
+            except queue.Empty:
+                # timeout reached, no more lines
+                break
 
-    def start(self, runner_id):
+    def start(self):
         """Start the task and stream logs."""
         if self.use_sdk:
             container = self.client.containers.get(self.container_name)
@@ -74,7 +91,10 @@ class DockerTaskRunner:
             )['Id']
             self.thread = threading.Thread(target=self.stream_sdk_logs)
             self.thread.start()
+            self.status = TaskStatus.PROCESSING
             self.thread.join()
+            
+            self.status = TaskStatus.DONE
         else:
             cmd = ["docker", "exec", "-it", self.container_name] + self.command
             self.proc = subprocess.Popen(
@@ -83,10 +103,12 @@ class DockerTaskRunner:
                 stderr=subprocess.PIPE,
                 text=True,
             )
+            self.status = TaskStatus.PROCESSING
             self.stream_subprocess_logs()
-            self.proc.wait()
+            status_code = self.proc.wait()
+            self.status = TaskStatus.DONE if status_code ==0 else TaskStatus.FAILED
             
-        RUNNER_REGISTRY.pop(runner_id, None)
+        # RUNNER_REGISTRY.pop(runner_id, None)
 
 
     def interrupt(self, force_timeout: int = 3):
@@ -138,15 +160,22 @@ class DockerManager:
     client = docker.from_env()
 
     @staticmethod
-    def run_container(spec: ContainerSpec) -> TaskOutput:
+    def run_container(
+                    image: str,
+                    name: str | None = None,
+                    ports: dict | None = None,
+                    env: dict[str, str] | list[str] | None = None,
+                    volumes: list[str] | None = None,
+                    detach: bool = True,
+                ) -> TaskOutput:
         """Run a new container based on ContainerSpec."""
         try:
             container = DockerManager.client.containers.run(
-                image=spec.image,
-                name=spec.name,
-                ports=spec.ports,
-                environment=spec.env,
-                volumes=spec.volumes,
+                image=image,
+                name=name,
+                ports=ports,
+                environment=env,
+                volumes=volumes,
                 detach=True,
             )
             return TaskOutput(success=True, output=f"Container {container.name} started")
@@ -173,7 +202,7 @@ class DockerManager:
         Returns the DockerTaskRunner instance so UI can call .interrupt()
         """
         runner = DockerTaskRunner(container_name, command, use_sdk=use_sdk)
-        runner_id = str(uuid.uuid4())
+        runner_id = runner.id
         RUNNER_REGISTRY[runner_id] = runner
         threading.Thread(target=runner.start, args=(runner_id,), daemon=True).start()
         return runner_id
@@ -194,4 +223,31 @@ class DockerManager:
     @staticmethod
     def create_container(image, name, *args, **kwargs):
         return DockerManager.client.containers.create(image=image, name=name, *args, **kwargs)
+    
+    @staticmethod
+    def docker_pull_image(image: str) -> str:
+        """
+        Pull a Docker image from a registry.
 
+        Args:
+            image (str): Docker image name, e.g., 'nginx:latest'.
+
+        Returns:
+            str: Status of the pull operation.
+        """
+        try:
+            pulled_image = DockerManager.client.images.pull(image)
+            return f"✅ Successfully pulled image: {pulled_image.tags}"
+        except Exception as e:
+            return f"❌ Failed to pull image '{image}': {str(e)}"
+        
+    @staticmethod
+    def get_list_of_images(repository_name:Optional[str]=None, all=True):
+        """
+        gets list of images. if repository_name is specified it is used as a filter
+        """
+        try:
+            images = DockerManager.client.images.list(name=repository_name, all=all)
+            return f"✅ Successfully list of images: {[str(images)]}"
+        except Exception as e:
+            return f"❌ Failed to fetch images lists': {str(e)}"

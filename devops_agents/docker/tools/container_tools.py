@@ -24,14 +24,6 @@ run_task_on_container_tool = create_structured_tool(
     log_colour="white"
 )
 
-get_list_of_containers_tool = create_structured_tool(
-    func = DockerManager.list_available_containers,
-    name = "list_available_containers",
-    description="""lists all container""",
-    log=True,
-    log_colour="purple"
-)
-
 stop_task_runner_tool = create_structured_tool(
     func = DockerManager.stop_runner,
     name = "stop_task_runner",
@@ -41,11 +33,36 @@ stop_task_runner_tool = create_structured_tool(
     log_colour="red"
 )
 
+get_list_of_containers_tool = create_structured_tool(
+    func = DockerManager.list_available_containers,
+    name = "list_available_containers",
+    description="""lists all container""",
+    log=True,
+    log_colour="purple"
+)
+
+get_list_of_images_tool = create_structured_tool(
+    func = DockerManager.get_list_of_images,
+    name = "get_list_of_docker_images",
+    log=True,
+    log_colour="purple"
+)
+
+pull_docker_image_tool = create_structured_tool(
+    func = DockerManager.docker_pull_image,
+    name = "pull_docker_image",
+    log=True,
+    log_colour="purple"
+)
+
+
 all_container_tools = [
     run_container_tool,
     run_task_on_container_tool,
-    get_list_of_containers_tool,
     stop_task_runner_tool,
+    get_list_of_containers_tool,
+    get_list_of_images_tool,
+    pull_docker_image_tool
 ]
 
 all_container_tools_mapping = {
