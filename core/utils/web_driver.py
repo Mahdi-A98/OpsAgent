@@ -45,7 +45,7 @@ class AutoQuitDriverManager:
         )
         self.last_used = time.time()
 
-    def get_driver(self):
+    def get_driver(self) -> webdriver.Chrome:
         with self.lock:
             if self.driver is None:
                 self._init_driver()
@@ -74,20 +74,20 @@ class AutoQuitDriverManager:
         thread.start()
 
 
-def cache_driver(driver_accessor):
-    cached_driver = {}
-    @functools.wraps(driver_accessor)
+def cache_driver(driver_manager_accessor):
+    cached_driver_manager = {}
+    @functools.wraps(driver_manager_accessor)
     def wrapper(*args, **kwargs):
-        cache_key = (driver_accessor.__name__, args, frozenset(kwargs.items()))
-        if driver_manager := cached_driver.get(cache_key):
-            return driver_manager.get_driver()
-        cached_driver[cache_key] = driver_accessor(*args, **kwargs)
-        return cached_driver[cache_key]
+        cache_key = (driver_manager_accessor.__name__, args, frozenset(kwargs.items()))
+        if driver_manager := cached_driver_manager.get(cache_key):
+            return driver_manager
+        cached_driver_manager[cache_key] = driver_manager_accessor(*args, **kwargs)
+        return cached_driver_manager[cache_key]
     return wrapper
 
 
 @cache_driver
-def access_chrome_driver(headless=True,
+def access_chrome_driver_manager(headless=True,
                         idle_timeout=300,
                         check_interval=5) -> AutoQuitDriverManager:
 
