@@ -15,7 +15,7 @@ from typing_extensions import TypedDict
 from core.base import OpsAgent, OpsAgentFactory
 from core.schemas import TaskInput, TaskOutput
 from core.utils import printers
-from core.utils.search_tools import search_web, tavily_search, url_extractor
+from core.utils.search_tools import tavily_search, google_search, search_through_url_tool
 from devops_agents.docker.tools import all_container_tools
 from devops_agents.docker.prompts import docker_agent_main_prompt
 
@@ -76,13 +76,11 @@ class DockerAgent(OpsAgent):
     def create_graph(self):
         model = self.client
         tools =  all_container_tools
-        tools.extend(
-            [
-                # search_web,
-                # url_extractor,
-                tavily_search
-            ]
-        )
+        tools += [
+            tavily_search,
+            google_search,
+            search_through_url_tool
+        ]
         agent = create_react_agent(model, tools, prompt=docker_agent_main_prompt)
         workflow = StateGraph(MessagesState)
         workflow.add_node("agent", agent)
@@ -117,6 +115,7 @@ def run_docker_agent():
         raise ValueError("OPENAI_API_KEY is not set in .env file")
     docker_agent_factory = DockerAgentFactory()
     docker_agent = docker_agent_factory.create_agent(api_key=openai_api_key, connection=conn)
+    docker_agent.graph.get_graph().draw_png("docker_agent.png")
     docker_agent.display_agent(display_type="stdout")
     docker_agent.run_loop()
     
