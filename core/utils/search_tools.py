@@ -1,8 +1,11 @@
 import requests
+from typing import Optional
 from langchain.tools import tool
 from langchain_tavily import TavilySearch
 from langchain_google_community import GoogleSearchResults, GoogleSearchAPIWrapper
 from core.settings import TAVILY_API_KEY, GOOGLE_API_KEY, GOOGLE_SEARCH_ENGINE_ID, OPENAI_API_KEY
+from core.agents.search_agent import search_agent
+from core.utils.log_tools import create_structured_tool
 
 
 google_search_api_wrapper = GoogleSearchAPIWrapper(
@@ -19,6 +22,23 @@ tavily_search = TavilySearch(
     api_key=TAVILY_API_KEY,
     max_results=3
 )
+
+
+def search_through_url(url: str, query: Optional[str]):
+    """
+    loads webpage of the url and searches query through its content
+    """
+    return search_agent.invoke({"url": url, "query": query})
+
+
+search_through_url_tool = create_structured_tool(
+    func=search_through_url,
+    name="search_through_url",
+    description="loads webpage of the url and searches query through its content",
+    log=True,
+    log_colour="orange"
+)
+
 
 @tool("url_extractor", return_direct=False)
 def url_extractor(url: str) -> str:
