@@ -223,5 +223,12 @@ $RECYCLE.BIN/
 *.sqlite3*
 */*.sqlite3
 */*.sqlite3*
+*/*.faiss
+*/*.pkl
 */*.env
 .vscode
+.venv*
+.venv_bash
+.idea
+temp
+data/*
