@@ -3,33 +3,14 @@ from typing import Optional, Callable
 from langchain.tools import StructuredTool
 
 
-def print_warm_yellow(text):
-    print("\033[38;5;220m{text}\033[0m".format(text=text))
-
-def print_warm_blue(text):
-    print("\033[38;5;117m{text}\033[0m".format(text=text))
-
-def print_orange(text):
-    print("\033[38;5;208m{text}\033[0m".format(text=text))
-
-def print_white(text):
-    print("\033[38;5;15m{text}\033[0m".format(text=text))
-
-def print_purple(text):
-    print("\033[38;5;129m{text}\033[0m".format(text=text))
-
-def print_red(text):
-    print("\033[38;5;196m{text}\033[0m".format(text=text))
-
-
 printers = {
-    None: print,
-    "warm_yellow": print_warm_yellow,
-    "warm_blue": print_warm_blue,
+    "warm_yellow": lambda text: print("\033[38;5;220m{text}\033[0m".format(text=text)),
+    "warm_blue": lambda text: print("\033[38;5;117m{text}\033[0m".format(text=text)),
     "orange": lambda text: print("\033[38;5;208m{text}\033[0m".format(text=text)),
     "purple": lambda text: print("\033[38;5;129m{text}\033[0m".format(text=text)),
     "white": lambda text: print("\033[38;5;15m{text}\033[0m".format(text=text)),
     "red": lambda text: print("\033[38;5;196m{text}\033[0m".format(text=text)),
+    None: print,
 }
 
 def log_wrapper(func, log_colour:Optional[str]="warm_yellow"):
@@ -40,13 +21,13 @@ def log_wrapper(func, log_colour:Optional[str]="warm_yellow"):
         if log:
             printers[log_colour](
                 f"[LOG] Using {func.__name__}"
-                f"with args: {args}, kwargs: {kwargs}\tresult: {result}"
+                f"with args: {args}, kwargs: {kwargs}\n---> result: {result}"
             )
         return result
     return wrapper
 
 
-def create_structured_tool(func, name, description, args_schema=None, log=True, log_colour="warm_yellow"):
+def create_structured_tool(func, name, description=None, args_schema=None, log=True, log_colour="warm_yellow"):
     func = log_wrapper(func, log_colour) if log else func
     tool = ToolWrapper.from_function(
         func=func,
