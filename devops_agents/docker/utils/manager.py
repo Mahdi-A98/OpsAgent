@@ -37,8 +37,14 @@ class DockerTaskRunner:
         self.id = str(uuid.uuid4())
 
         if self.use_sdk:
-            self.client = docker.from_env()
-            self.api_client = docker.APIClient(base_url='unix://var/run/docker.sock')
+            if platform.system() == "Windows":
+                base_url = "npipe:////./pipe/docker_engine"
+            else:
+                base_url = "unix://var/run/docker.sock"
+
+            self.client = docker.DockerClient(base_url=base_url)
+            self.api_client = docker.APIClient(base_url=base_url)
+            
             self.exec_id = None
         else:
             self.proc: Optional[subprocess.Popen] = None
