@@ -1,4 +1,5 @@
-from .container_tools import all_container_tools, all_container_tools_mapping
+from devops_agents.docker.tools.container_tools import all_container_tools, all_container_tools_mapping
+from devops_agents.docker.tools.shell_tools import shell_tools_map, all_shell_tools
 from core.utils import create_structured_tool, ToolColourChanger
 
 
