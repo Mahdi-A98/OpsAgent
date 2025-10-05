@@ -24,6 +24,22 @@ run_task_on_container_tool = create_structured_tool(
     log_colour="white"
 )
 
+get_task_runner_output_tool = create_structured_tool(
+    func = DockerManager.get_task_runner_output,
+    name = "get_task_runner_output",
+    description="""output result of task runner with given runner_id""",
+    log=True,
+    log_colour="white"
+)
+
+check_task_runner_status_tool = create_structured_tool(
+    func = DockerManager.get_task_runner_status,
+    name = "check_task_runner_status",
+    description="""returns the status of task runner with given runner_id""",
+    log=True,
+    log_colour="white"
+)
+
 stop_task_runner_tool = create_structured_tool(
     func = DockerManager.stop_runner,
     name = "stop_task_runner",
@@ -62,12 +78,11 @@ all_container_tools = [
     stop_task_runner_tool,
     get_list_of_containers_tool,
     get_list_of_images_tool,
-    pull_docker_image_tool
+    pull_docker_image_tool,
+    get_task_runner_output_tool,
+    check_task_runner_status_tool,
 ]
 
-all_container_tools_mapping = {
-    run_container_tool.name: run_container_tool,
-    run_task_on_container_tool.name: run_task_on_container_tool,
-    get_list_of_containers_tool.name: get_list_of_containers_tool,
-    stop_task_runner_tool.name: stop_task_runner_tool,
+all_container_tools_mapping = { 
+    tool.name: tool for tool in all_container_tools if hasattr(tool, "name")
 }
