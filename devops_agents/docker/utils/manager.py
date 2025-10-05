@@ -121,7 +121,9 @@ class DockerTaskRunner:
             status_code = self.proc.wait()
             self.status = TaskStatus.DONE if status_code ==0 else TaskStatus.FAILED
             
-        # RUNNER_REGISTRY.pop(runner_id, None)
+    def get_output(self):
+        streamer = self.stream_sdk_logs if self.use_sdk else self.stream_subprocess_logs
+        return "".join(list(streamer()))            
 
 
     def interrupt(self, force_timeout: int = 3):
