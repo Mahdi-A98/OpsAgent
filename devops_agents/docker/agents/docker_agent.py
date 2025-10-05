@@ -16,7 +16,7 @@ from core.base import OpsAgent, OpsAgentFactory
 from core.schemas import TaskInput, TaskOutput
 from core.utils import printers
 from core.utils.search_tools import tavily_search, google_search, search_through_url_tool
-from devops_agents.docker.tools import all_container_tools
+from devops_agents.docker.tools import all_container_tools, all_shell_tools
 from devops_agents.docker.prompts import docker_agent_main_prompt
 
 
@@ -76,6 +76,7 @@ class DockerAgent(OpsAgent):
     def create_graph(self):
         model = self.client
         tools =  all_container_tools
+        tools += all_shell_tools
         tools += [
             tavily_search,
             google_search,
@@ -107,16 +108,18 @@ class DockerAgentFactory(OpsAgentFactory):
         
         
 def run_docker_agent():
-    load_dotenv()
-    db_name = os.environ.get("DOCKER_AGENT_CHAT_DB", ":memory:")
+    # load_dotenv()
+    from core import settings
+    db_name = settings.DOCKER_AGENT_CHAT_DB
     conn = sqlite3.connect(db_name, check_same_thread = False)
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    if not openai_api_key:
-        raise ValueError("OPENAI_API_KEY is not set in .env file")
+    openai_api_key = settings.OPENAI_API_KEY
     docker_agent_factory = DockerAgentFactory()
-    docker_agent = docker_agent_factory.create_agent(api_key=openai_api_key, connection=conn)
-    docker_agent.graph.get_graph().draw_png("docker_agent.png")
-    docker_agent.display_agent(display_type="stdout")
+    docker_agent = docker_agent_factory.create_agent(
+        api_key=openai_api_key,
+        connection=conn
+    )
+    # docker_agent.graph.get_graph().draw_png("docker_agent.png")
+    # docker_agent.display_agent(display_type="stdout")
     docker_agent.run_loop()
     
 if __name__ == "__main__":
