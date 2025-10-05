@@ -5,12 +5,13 @@ import time
 import queue
 import docker
 import signal
+import platform
 import subprocess
 import threading
 from enum import StrEnum
-from typing import List, Dict, Optional, Generator, Literal
+from docker.errors import DockerException
+from typing import List, Dict, Optional
 from core.schemas import TaskOutput
-from devops_agents.docker.schemas import ContainerSpec
 
 
 
@@ -100,16 +101,15 @@ class DockerTaskRunner:
         if self.use_sdk:
             container = self.client.containers.get(self.container_name)
             self.exec_id = self.api_client.exec_create(
-                container.id, cmd=self.command, tty=True
+                container.id, cmd=self.sub_commands, tty=True
             )['Id']
             self.thread = threading.Thread(target=self.stream_sdk_logs)
             self.thread.start()
             self.status = TaskStatus.PROCESSING
             self.thread.join()
-            
             self.status = TaskStatus.DONE
         else:
-            cmd = ["docker", "exec", "-it", self.container_name] + self.command
+            cmd = ["docker", "exec", "-it", self.container_name] + self.sub_commands
             self.proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -117,7 +117,7 @@ class DockerTaskRunner:
                 text=True,
             )
             self.status = TaskStatus.PROCESSING
-            self.stream_subprocess_logs()
+            # self.stream_subprocess_logs()
             status_code = self.proc.wait()
             self.status = TaskStatus.DONE if status_code ==0 else TaskStatus.FAILED
             
@@ -229,9 +229,30 @@ class DockerManager:
         runner = DockerTaskRunner(container_name, command, use_sdk=use_sdk)
         runner_id = runner.id
         RUNNER_REGISTRY[runner_id] = runner
-        threading.Thread(target=runner.start, args=(runner_id,), daemon=True).start()
+        threading.Thread(target=runner.start, args=(), daemon=True).start()
         return runner_id
     
+    @staticmethod
+    def get_task_runner_output(runner_id: str):
+        """
+        return task output of runner with given runner_id
+        """
+        runner = RUNNER_REGISTRY.get(runner_id)
+        if not runner:
+            raise ValueError(f"Runner {runner_id} not found")
+        return runner.get_output()
+    
+    @staticmethod
+    def get_task_runner_status(runner_id: str):
+        """
+        return task output of runner with given runner_id
+        """
+        runner = RUNNER_REGISTRY.get(runner_id)
+        if not runner:
+            raise ValueError(f"Runner {runner_id} not found")
+        return runner.status
+    
+        
     @staticmethod
     def stop_runner(runner_id: str):
         """
