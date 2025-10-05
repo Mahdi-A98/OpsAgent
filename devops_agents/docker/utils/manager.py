@@ -35,7 +35,14 @@ class DockerTaskRunner:
         self.thread = None
         self.status: TaskStatus = TaskStatus.NOT_STARTED
         self.id = str(uuid.uuid4())
-
+        
+        self.sub_commands = []
+        if not isinstance(command, list):
+            self.sub_commands = self.command.split()
+        else:
+            for sb in self.command:
+                self.sub_commands.extend(sb.split())
+        
         if self.use_sdk:
             if platform.system() == "Windows":
                 base_url = "npipe:////./pipe/docker_engine"
