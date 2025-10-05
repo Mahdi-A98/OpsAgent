@@ -157,7 +157,17 @@ class DockerTaskRunner:
 
 
 class DockerManager:
-    client = docker.from_env()
+    _client = None
+    
+    @classmethod
+    def _get_docker_client(cls):
+        if cls._client:
+            return cls._client
+        try:
+            cls._client = docker.from_env()
+            return cls._client
+        except DockerException:
+            raise Exception("Cannot connect to docker may docker engine is not running!")        
 
     @staticmethod
     def run_container(
@@ -170,7 +180,7 @@ class DockerManager:
                 ) -> TaskOutput:
         """Run a new container based on ContainerSpec."""
         try:
-            container = DockerManager.client.containers.run(
+            container = DockerManager._get_docker_client().containers.run(
                 image=image,
                 name=name,
                 ports=ports,
@@ -186,7 +196,7 @@ class DockerManager:
     def list_available_containers(all: bool = True) -> TaskOutput:
         """List all containers."""
         try:
-            containers = DockerManager.client.containers.list(all=all)
+            containers = DockerManager._get_docker_client().containers.list(all=all)
             output = [
                 {"id": c.short_id, "name": c.name, "status": c.status, "image": c.image.tags}
                 for c in containers
@@ -218,11 +228,12 @@ class DockerManager:
         stopped = runner.interrupt()
         if stopped:
             return f"runner \"{runner_id}\" stopped successfully"
-        return f"failed to stop runner \"{runner_id}\""
-        
+        return f"failed to stop runner \"{runner_id}\"" 
+    
+    
     @staticmethod
     def create_container(image, name, *args, **kwargs):
-        return DockerManager.client.containers.create(image=image, name=name, *args, **kwargs)
+        return DockerManager._get_docker_client().containers.create(image=image, name=name, *args, **kwargs)
     
     @staticmethod
     def docker_pull_image(image: str) -> str:
@@ -236,7 +247,7 @@ class DockerManager:
             str: Status of the pull operation.
         """
         try:
-            pulled_image = DockerManager.client.images.pull(image)
+            pulled_image = DockerManager._get_docker_client().images.pull(image)
             return f"✅ Successfully pulled image: {pulled_image.tags}"
         except Exception as e:
             return f"❌ Failed to pull image '{image}': {str(e)}"
