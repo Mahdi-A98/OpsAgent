@@ -64,6 +64,20 @@ get_list_of_images_tool = create_structured_tool(
     log_colour="purple"
 )
 
+start_docket_container_tool = create_structured_tool(
+    func = DockerManager.start_container,
+    name = "start_docker_container",
+    log=True,
+    log_colour="purple"
+)
+
+stop_docker_container_tool = create_structured_tool(
+    func = DockerManager.stop_container,
+    name = "stop_docker_container_tool",
+    log=True,
+    log_colour="purple"
+)
+
 pull_docker_image_tool = create_structured_tool(
     func = DockerManager.docker_pull_image,
     name = "pull_docker_image",
@@ -81,6 +95,8 @@ all_container_tools = [
     pull_docker_image_tool,
     get_task_runner_output_tool,
     check_task_runner_status_tool,
+    start_docket_container_tool,
+    stop_docker_container_tool
 ]
 
 all_container_tools_mapping = { 

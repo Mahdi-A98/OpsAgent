@@ -33,11 +33,16 @@ class DockerAgent(OpsAgent):
                 client=ChatOpenAI,
                 client_config: Optional[dict] = None,
                 memory_saver=SqliteSaver,
-                output_color="warm_blue"):
+                output_color="warm_blue",
+                streaming=True):
         
         self.model = model
         self.api_key = api_key
-        self.client = client(api_key=api_key, **(client_config or {}))
+        self.client = client(
+            api_key=api_key,
+            **(client_config or {}),
+            streaming=streaming
+        )
         self.memory = memory_saver(connection) if connection else None
         self._graph = None
         self.output_color = output_color
@@ -56,7 +61,16 @@ class DockerAgent(OpsAgent):
 
     def run(self, question: str, config=None) -> str:
         result = self.graph.invoke(
-            MessagesState({"messages": [{"role": "user", "content": question}]}),
+            MessagesState(
+                {
+                    "messages": [
+                        { # type: ignore[arg-type]
+                            "role": "user",
+                            "content": question
+                        }  
+                    ]
+                }
+            ),
             config
         )
         final_message = result["messages"][-1].content
@@ -65,7 +79,10 @@ class DockerAgent(OpsAgent):
     def run_loop(self, thread_id=None):
         thread_id = thread_id or uuid.uuid4()
         config = {"configurable": {"thread_id":thread_id }}
-        user_input = input("Hello I'm docker agent. how can i help you?\n>>  ")
+        user_input = input(
+            "Hello I'm docker agent. how can i help you?\n"
+            "(enter quit, exit or end to exit)\n"
+            ">>  ")
         while True:
             if user_input in ["quit", "exit", "end"]:
                 break
