@@ -1,5 +1,4 @@
 import io
-import sys
 import uuid
 import time
 import queue
@@ -9,9 +8,9 @@ import platform
 import subprocess
 import threading
 from enum import StrEnum
-from docker.errors import DockerException
 from typing import List, Dict, Optional
 from core.schemas import TaskOutput
+from docker.errors import DockerException, NotFound
 
 
 
@@ -135,7 +134,6 @@ class DockerTaskRunner:
             try:
                 # Graceful stop
                 self.api_client._post(f"/exec/{self.exec_id}/kill", data={"signal": "SIGINT"})
-
                 # Wait for process to exit
                 start = time.time()
                 while time.time() - start < force_timeout:
@@ -294,7 +292,41 @@ class DockerManager:
         gets list of images. if repository_name is specified it is used as a filter
         """
         try:
-            images = DockerManager.client.images.list(name=repository_name, all=all)
+            images = DockerManager._get_docker_client().images.list(name=repository_name, all=all)
             return f"✅ Successfully list of images: {[str(images)]}"
         except Exception as e:
             return f"❌ Failed to fetch images lists': {str(e)}"
+        
+    @staticmethod
+    def start_container(container_name: str) -> TaskOutput:
+        """
+        Start an existing stopped container by name or ID.
+        """
+        try:
+            container = DockerManager._get_docker_client().containers.get(container_name)
+            if container.status != "running":
+                container.start()
+                return TaskOutput(success=True, output=f"✅ Container '{container_name}' started")
+            else:
+                return TaskOutput(success=True, output=f"ℹ️ Container '{container_name}' is already running")
+        except NotFound:
+            return TaskOutput(success=False, output="", error=f"Container '{container_name}' not found")
+        except Exception as e:
+            return TaskOutput(success=False, output="", error=str(e))
+
+    @staticmethod
+    def stop_container(container_name: str, timeout: int = 10) -> TaskOutput:
+        """
+        Stop a running container gracefully.
+        """
+        try:
+            container = DockerManager._get_docker_client().containers.get(container_name)
+            if container.status == "running":
+                container.stop(timeout=timeout)
+                return TaskOutput(success=True, output=f"✅ Container '{container_name}' stopped")
+            else:
+                return TaskOutput(success=True, output=f"ℹ️ Container '{container_name}' is not running")
+        except NotFound:
+            return TaskOutput(success=False, output="", error=f"Container '{container_name}' not found")
+        except Exception as e:
+            return TaskOutput(success=False, output="", error=str(e))
